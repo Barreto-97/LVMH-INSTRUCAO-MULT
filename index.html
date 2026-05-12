@@ -583,7 +583,7 @@ async function processData() {
   setProgress(5, 'Iniciando leitura dos arquivos…');
 
   try {
-    const mapaUnidade = { 'PC': '25' };
+    const mapaUnidade = { 'PC': '25','PAA': '13' };
     const mapaMoeda   = { 'BRL': '790' };
 
     let allRows = [];
@@ -629,7 +629,7 @@ async function processData() {
       const qty     = String(row['Billed Qty'] || '').trim();
 
       return {
-        'CODIGO PRINCIPAL':                         row['Material']           || '',
+        'CODIGO PRINCIPAL':                         row['LV SKU Code']           || '',
         'CODIGO SECUNDARIO':                        '',
         'DESCRICAO RESUMIDA DO PRODUTO':            row['Material Desc.']     || '',
         'UNIDADE MEDIDA':                           unidade,
