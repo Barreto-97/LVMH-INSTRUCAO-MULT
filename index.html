@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LVMH · Consolidador de Faturas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --navy:       #0a1628;
+    --navy-mid:   #112244;
+    --navy-light: #1a3560;
+    --accent:     #2a6dd9;
+    --accent-2:   #4d9fff;
+    --gold:       #c9a84c;
+    --white:      #f0f4ff;
+    --muted:      #8899bb;
+    --card-bg:    rgba(17,34,68,0.72);
+    --border:     rgba(42,109,217,0.25);
+    --success:    #22c55e;
+    --error:      #ef4444;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--navy);
+    color: var(--white);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    background-image:
+      radial-gradient(ellipse 80% 60% at 50% -20%, rgba(42,109,217,0.18) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 40% at 90% 80%, rgba(201,168,76,0.07) 0%, transparent 60%);
+  }
+
+  /* ── MESH BACKGROUND ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background-image:
+      linear-gradient(rgba(42,109,217,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(42,109,217,0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+  }
+
+  .wrapper {
+    position: relative; z-index: 1;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  /* ── HEADER ── */
+  header {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 10px; margin-bottom: 48px; text-align: center;
+  }
+  .brand-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(201,168,76,0.12);
+    border: 1px solid rgba(201,168,76,0.35);
+    border-radius: 32px;
+    padding: 5px 16px;
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--gold); font-family: 'Syne', sans-serif; font-weight: 600;
+    margin-bottom: 6px;
+  }
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 800; line-height: 1.08;
+    background: linear-gradient(135deg, var(--white) 40%, var(--accent-2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    letter-spacing: -1px;
+  }
+  .subtitle {
+    color: var(--muted); font-size: 15px; font-weight: 300; max-width: 440px;
+    line-height: 1.6;
+  }
+
+  /* ── STEPS ── */
+  .steps {
+    display: flex; flex-direction: column; gap: 20px;
+  }
+
+  .step-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 28px 32px;
+    backdrop-filter: blur(12px);
+    transition: border-color .25s, box-shadow .25s;
+    position: relative; overflow: hidden;
+  }
+  .step-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0; transition: opacity .3s;
+  }
+  .step-card:hover { border-color: rgba(42,109,217,0.5); }
+  .step-card:hover::before { opacity: 1; }
+
+  .step-header {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 18px;
+  }
+  .step-num {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--accent), var(--navy-light));
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px;
+  }
+  .step-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 600; font-size: 16px; color: var(--white);
+  }
+  .step-desc {
+    font-size: 13px; color: var(--muted); margin-top: 2px;
+  }
+
+  /* ── FILE DROP ZONE ── */
+  .dropzone {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 32px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    position: relative;
+  }
+  .dropzone:hover, .dropzone.dragover {
+    border-color: var(--accent);
+    background: rgba(42,109,217,0.08);
+  }
+  .dropzone input[type="file"] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%;
+  }
+  .dz-icon { font-size: 32px; margin-bottom: 10px; display: block; }
+  .dz-text { color: var(--muted); font-size: 14px; }
+  .dz-text strong { color: var(--accent-2); }
+  .dz-hint { font-size: 12px; color: var(--muted); margin-top: 6px; opacity: .7; }
+
+  /* File list */
+  .file-list {
+    margin-top: 14px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .file-item {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(42,109,217,0.1);
+    border: 1px solid rgba(42,109,217,0.2);
+    border-radius: 8px; padding: 9px 14px;
+    font-size: 13px; animation: fadeSlide .25s ease;
+  }
+  .file-item .fi-icon { font-size: 16px; }
+  .file-item .fi-name { flex: 1; color: var(--white); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-item .fi-size { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .file-item .fi-remove {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 16px; line-height: 1; padding: 0 4px; transition: color .2s;
+  }
+  .file-item .fi-remove:hover { color: var(--error); }
+
+  @keyframes fadeSlide {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── TEXTAREA ── */
+  textarea {
+    width: 100%;
+    background: rgba(10,22,40,0.7);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--white);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    line-height: 1.7;
+    padding: 14px 16px;
+    resize: vertical;
+    min-height: 140px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  textarea::placeholder { color: rgba(136,153,187,0.5); }
+  textarea:focus { border-color: var(--accent); }
+
+  .ta-meta {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 8px;
+  }
+  .ta-hint { font-size: 12px; color: var(--muted); }
+  .invoice-count {
+    font-size: 12px;
+    background: rgba(42,109,217,0.15);
+    border: 1px solid rgba(42,109,217,0.3);
+    border-radius: 20px; padding: 3px 10px;
+    color: var(--accent-2);
+    font-weight: 500;
+    display: none;
+  }
+  .invoice-count.show { display: inline-block; }
+
+  /* ── PROCESS BUTTON ── */
+  .btn-process {
+    width: 100%;
+    padding: 18px;
+    border: none; border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent) 0%, #1a5abf 100%);
+    color: #fff; font-family: 'Syne', sans-serif;
+    font-size: 17px; font-weight: 700; letter-spacing: .4px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    transition: transform .15s, box-shadow .2s, opacity .2s;
+    box-shadow: 0 8px 32px rgba(42,109,217,0.35);
+    margin-top: 8px;
+    position: relative; overflow: hidden;
+  }
+  .btn-process::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+    opacity: 0; transition: opacity .2s;
+  }
+  .btn-process:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(42,109,217,0.5); }
+  .btn-process:hover::after { opacity: 1; }
+  .btn-process:active:not(:disabled) { transform: translateY(0); }
+  .btn-process:disabled { opacity: .55; cursor: not-allowed; }
+
+  /* ── PROGRESS ── */
+  .progress-wrap {
+    margin-top: 16px; display: none;
+  }
+  .progress-wrap.show { display: block; }
+  .progress-bar-bg {
+    background: rgba(42,109,217,0.15);
+    border-radius: 99px; height: 6px; overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%; border-radius: 99px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    width: 0%; transition: width .3s ease;
+  }
+  .progress-label {
+    font-size: 12px; color: var(--muted); margin-top: 6px; text-align: center;
+  }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--navy-mid);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 22px;
+    font-size: 14px;
+    display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+    opacity: 0; transition: opacity .3s, transform .3s;
+    z-index: 999; pointer-events: none; min-width: 280px; max-width: 480px;
+    white-space: pre-line;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: rgba(34,197,94,0.4); }
+  .toast.error   { border-color: rgba(239,68,68,0.4); }
+  .toast.success .toast-icon { color: var(--success); font-size: 20px; }
+  .toast.error   .toast-icon { color: var(--error);   font-size: 20px; }
+
+  /* ── DIVIDER ── */
+  .divider { height: 1px; background: var(--border); margin: 8px 0; }
+
+  /* ── RESULT SUMMARY ── */
+  .result-summary {
+    display: none; margin-top: 20px;
+    background: rgba(34,197,94,0.08);
+    border: 1px solid rgba(34,197,94,0.25);
+    border-radius: 14px; padding: 20px 24px;
+    animation: fadeSlide .3s ease;
+  }
+  .result-summary.show { display: block; }
+  .rs-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; color: var(--success); margin-bottom: 10px; }
+  .rs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .rs-item { }
+  .rs-item .ri-label { font-size: 12px; color: var(--muted); }
+  .rs-item .ri-val { font-size: 18px; font-weight: 700; font-family: 'Syne', sans-serif; color: var(--white); }
+
+  /* RESPONSIVE */
+  @media (max-width: 560px) {
+    .wrapper { padding: 28px 14px 60px; }
+    .step-card { padding: 20px 18px; }
+    .rs-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <header>
+    <span class="brand-badge">⬡ LVMH · Billing Tools</span>
+    <h1>Consolidador<br>de Faturas</h1>
+    <p class="subtitle">Importe arquivos de billing, informe os números de fatura e gere o relatório Excel pronto para uso — tudo no navegador.</p>
+  </header>
+
+  <div class="steps">
+
+    <!-- STEP 1 -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-num">1</div>
+        <div>
+          <div class="step-title">Anexar Arquivos de Billing</div>
+          <div class="step-desc">Suporte a .csv, .xls e .xlsx. Múltiplos arquivos aceitos.</div>
+        </div>
+      </div>
+
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="fileInput" multiple accept=".csv,.xls,.xlsx" />
+        <span class="dz-icon">📂</span>
+        <div class="dz-text"><strong>Clique aqui</strong> ou arraste seus arquivos</div>
+        <div class="dz-hint">.csv · .xls · .xlsx</div>
+      </div>
+
+      <div class="file-list" id="fileList"></div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-num">2</div>
+        <div>
+          <div class="step-title">Números das Faturas</div>
+          <div class="step-desc">Insira um número por linha para filtrar os registros.</div>
+        </div>
+      </div>
+
+      <textarea id="invoiceInput" placeholder="Ex:&#10;9000123456&#10;9000123457&#10;9000123458"></textarea>
+      <div class="ta-meta">
+        <span class="ta-hint">Um número por linha</span>
+        <span class="invoice-count" id="invoiceCount">0 faturas</span>
+      </div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-num">3</div>
+        <div>
+          <div class="step-title">Processar &amp; Baixar Relatório</div>
+          <div class="step-desc">O arquivo .xlsx será gerado e baixado automaticamente.</div>
+        </div>
+      </div>
+
+      <button class="btn-process" id="btnProcess">
+        <span id="btnIcon">⚡</span>
+        <span id="btnLabel">Processar e Gerar Relatório</span>
+      </button>
+
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressBar"></div></div>
+        <div class="progress-label" id="progressLabel">Lendo arquivos…</div>
+      </div>
+
+      <div class="result-summary" id="resultSummary">
+        <div class="rs-title">✓ Relatório gerado com sucesso!</div>
+        <div class="rs-grid">
+          <div class="rs-item">
+            <div class="ri-label">Linhas exportadas</div>
+            <div class="ri-val" id="rsRows">—</div>
+          </div>
+          <div class="rs-item">
+            <div class="ri-label">Faturas encontradas</div>
+            <div class="ri-val" id="rsInvoices">—</div>
+          </div>
+          <div class="rs-item">
+            <div class="ri-label">Arquivos processados</div>
+            <div class="ri-val" id="rsFiles">—</div>
+          </div>
+          <div class="rs-item">
+            <div class="ri-label">Colunas no relatório</div>
+            <div class="ri-val" id="rsCols">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /steps -->
+</div><!-- /wrapper -->
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <span class="toast-icon" id="toastIcon"></span>
+  <span id="toastMsg"></span>
+</div>
+
+<script>
+/* ===== GLOBALS ===== */
+const fileInput    = document.getElementById('fileInput');
+const dropzone     = document.getElementById('dropzone');
+const fileList     = document.getElementById('fileList');
+const invoiceInput = document.getElementById('invoiceInput');
+const invoiceCount = document.getElementById('invoiceCount');
+const btnProcess   = document.getElementById('btnProcess');
+const btnLabel     = document.getElementById('btnLabel');
+const btnIcon      = document.getElementById('btnIcon');
+const progressWrap = document.getElementById('progressWrap');
+const progressBar  = document.getElementById('progressBar');
+const progressLabel= document.getElementById('progressLabel');
+const resultSummary= document.getElementById('resultSummary');
+
+let selectedFiles = [];
+
+/* ===== DRAG & DROP ===== */
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault(); dropzone.classList.remove('dragover');
+  addFiles([...e.dataTransfer.files]);
+});
+fileInput.addEventListener('change', () => { addFiles([...fileInput.files]); fileInput.value = ''; });
+
+function addFiles(newFiles) {
+  const valid = newFiles.filter(f => /\.(csv|xls|xlsx)$/i.test(f.name));
+  const invalid = newFiles.length - valid.length;
+  valid.forEach(f => {
+    if (!selectedFiles.find(x => x.name === f.name && x.size === f.size)) selectedFiles.push(f);
+  });
+  renderFileList();
+  if (invalid > 0) showToast('error', `⚠️ ${invalid} arquivo(s) ignorado(s) — formato inválido.`);
+}
+
+function removeFile(idx) {
+  selectedFiles.splice(idx, 1);
+  renderFileList();
+}
+
+function renderFileList() {
+  fileList.innerHTML = '';
+  selectedFiles.forEach((f, i) => {
+    const item = document.createElement('div');
+    item.className = 'file-item';
+    const ext = f.name.split('.').pop().toUpperCase();
+    const icon = ext === 'CSV' ? '📄' : '📊';
+    const size = f.size > 1024*1024 ? (f.size/1024/1024).toFixed(1)+' MB' : (f.size/1024).toFixed(0)+' KB';
+    item.innerHTML = `
+      <span class="fi-icon">${icon}</span>
+      <span class="fi-name" title="${f.name}">${f.name}</span>
+      <span class="fi-size">${size}</span>
+      <button class="fi-remove" onclick="removeFile(${i})" title="Remover">×</button>`;
+    fileList.appendChild(item);
+  });
+}
+
+/* ===== INVOICE COUNT ===== */
+invoiceInput.addEventListener('input', updateInvoiceCount);
+function updateInvoiceCount() {
+  const list = getInvoiceList();
+  invoiceCount.textContent = list.length + (list.length === 1 ? ' fatura' : ' faturas');
+  invoiceCount.classList.toggle('show', list.length > 0);
+}
+function getInvoiceList() {
+  return invoiceInput.value.split('\n').map(s => s.trim()).filter(Boolean);
+}
+
+/* ===== TOAST ===== */
+let toastTimer;
+function showToast(type, msg, duration = 4000) {
+  const toast = document.getElementById('toast');
+  const icon  = document.getElementById('toastIcon');
+  const msgEl = document.getElementById('toastMsg');
+  toast.className = `toast ${type}`;
+  icon.textContent = type === 'success' ? '✓' : '✕';
+  msgEl.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), duration);
+}
+
+/* ===== PROGRESS ===== */
+function setProgress(pct, label) {
+  progressWrap.classList.add('show');
+  progressBar.style.width = pct + '%';
+  progressLabel.textContent = label;
+}
+
+/* ===== HELPERS ===== */
+function limparNumero(valor) {
+  if (valor === null || valor === undefined || valor === '') return 0;
+  if (typeof valor === 'number') return valor;
+  const s = String(valor).trim().replace(/,/g, '');
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
+function readFileAsArrayBuffer(file) {
+  return new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.onload  = e => res(e.target.result);
+    reader.onerror = () => rej(new Error('Falha ao ler: ' + file.name));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function detectDelimiter(firstLine) {
+  const counts = {
+    '\t': (firstLine.match(/\t/g) || []).length,
+    ';':  (firstLine.match(/;/g)  || []).length,
+    ',':  (firstLine.match(/,/g)  || []).length,
+  };
+  // TAB takes priority if it has any occurrences
+  if (counts['\t'] > 0) return '\t';
+  if (counts[';'] >= counts[',']) return ';';
+  return ',';
+}
+
+function splitCSVLine(line, delim) {
+  // Handles quoted fields properly
+  if (delim === '\t') {
+    // TAB-delimited: fields are usually not quoted
+    return line.split('\t').map(c => c.replace(/^"|"$/g, '').trim());
+  }
+  // For comma/semicolon handle quoted fields
+  const result = [];
+  let cur = '', inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQuote = !inQuote; continue; }
+    if (ch === delim && !inQuote) { result.push(cur.trim()); cur = ''; continue; }
+    cur += ch;
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+function parseCSVManual(text) {
+  const lines = text.split('\n');
+  const firstLine = lines[0];
+  const delim = detectDelimiter(firstLine);
+  const headers = splitCSVLine(firstLine, delim).map(h => h.replace(/^"|"$/g, '').trim());
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const cells = splitCSVLine(line, delim);
+    const obj = {};
+    headers.forEach((h, idx) => obj[h] = cells[idx] ?? '');
+    rows.push(obj);
+  }
+  return rows;
+}
+
+async function readFileToRows(file) {
+  const ab = await readFileAsArrayBuffer(file);
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  if (ext === 'csv') {
+    // try as text
+    const text = new TextDecoder('latin1').decode(ab);
+    return parseCSVManual(text);
+  } else {
+    const wb = XLSX.read(ab, { type: 'array', cellText: true, cellDates: false });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const raw = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
+    return raw;
+  }
+}
+
+/* ===== MAIN PROCESSING ===== */
+btnProcess.addEventListener('click', processData);
+
+async function processData() {
+  resultSummary.classList.remove('show');
+
+  if (selectedFiles.length === 0) { showToast('error', 'Anexe ao menos um arquivo antes de processar.'); return; }
+  const listaFaturas = getInvoiceList();
+  if (listaFaturas.length === 0) { showToast('error', 'Insira ao menos um número de fatura.'); return; }
+
+  btnProcess.disabled = true;
+  btnIcon.textContent  = '⏳';
+  btnLabel.textContent = 'Processando…';
+  setProgress(5, 'Iniciando leitura dos arquivos…');
+
+  try {
+    const mapaUnidade = { 'PC': '25' };
+    const mapaMoeda   = { 'BRL': '790' };
+
+    let allRows = [];
+
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const file = selectedFiles[i];
+      setProgress(10 + Math.round((i / selectedFiles.length) * 50), `Lendo ${file.name}…`);
+      const rows = await readFileToRows(file);
+
+      if (rows.length === 0 || !Object.keys(rows[0]).includes('Billing Doc.')) {
+        const cols = rows.length > 0 ? Object.keys(rows[0]).slice(0, 5).join(' | ') : 'nenhuma';
+        showToast('error', `Coluna "Billing Doc." não encontrada em:\n${file.name}\n\nPrimeiras colunas detectadas:\n${cols}`, 9000);
+        resetBtn(); return;
+      }
+
+      const filtered = rows.filter(r => listaFaturas.includes(String(r['Billing Doc.']).trim()));
+      allRows = allRows.concat(filtered);
+    }
+
+    setProgress(65, 'Filtrando e calculando valores…');
+
+    if (allRows.length === 0) {
+      showToast('error', 'Nenhuma fatura correspondente encontrada nos arquivos anexados.');
+      resetBtn(); return;
+    }
+
+    setProgress(75, 'Construindo relatório final…');
+
+    const finalRows = allRows.map(row => {
+      const billedQtyNum = limparNumero(row['Billed Qty']);
+      const netValueNum  = limparNumero(row['Net Value']);
+      const valorCalc    = billedQtyNum !== 0 ? Math.round((netValueNum / billedQtyNum) * 100) / 100 : 0;
+
+      const salesUnit = String(row['Sales Unit'] || '').trim();
+      const unidade   = mapaUnidade[salesUnit] !== undefined ? mapaUnidade[salesUnit] : salesUnit;
+
+      const docCurr = String(row['Document Curr.'] || '').trim();
+      const moeda   = mapaMoeda[docCurr] !== undefined ? mapaMoeda[docCurr] : docCurr;
+
+      const ncmRaw  = String(row['Custom code'] || '').trim();
+      const ncm     = ncmRaw.substring(0, 8);
+
+      const qty     = String(row['Billed Qty'] || '').trim();
+
+      return {
+        'CODIGO PRINCIPAL':                         row['Material']           || '',
+        'CODIGO SECUNDARIO':                        '',
+        'DESCRICAO RESUMIDA DO PRODUTO':            row['Material Desc.']     || '',
+        'UNIDADE MEDIDA':                           unidade,
+        'NCM':                                      ncm,
+        'QUANTIDADE':                               qty,
+        'PESO LIQUIDO UNITÁRIO':                    limparNumero(row['Unit net weight']),
+        'PESO BRUTO UNITÁRIO':                      '',
+        'CÓDIGO DO EXPORTADOR':                     '000750',
+        'DESCRICAO PORTUGUES':                      '',
+        'VALOR UNITARIO ITEM':                      valorCalc,
+        'DESTAQUE DE ANUENCIA':                     '',
+        'CÓDIGO DO FABRICANTE':                     '',
+        'PAÍS DE ORIGEM':                           row['Made in 1']          || '',
+        'NVE':                                      '',
+        'DESCRICAO DO PRODUTO PARA NOTA FISCAL':    '',
+        'FATURA':                                   row['Billing Doc.']       || '',
+        'QUEBRA AUX':                               '',
+        'Reservado 1':                              '',
+        'Reservado 2':                              '',
+        'Moeda':                                    moeda,
+        'AREA':                                     '',
+        'NECESSITA LI':                             '',
+        'ORDEM DE COMPRA':                          row['Sales Doc.']         || '',
+        'CODIGO(GTIN / EAN)':                       '',
+      };
+    });
+
+    setProgress(88, 'Gerando arquivo Excel…');
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(finalRows);
+
+    // Column widths
+    const colWidths = Object.keys(finalRows[0]).map(k => ({ wch: Math.max(k.length + 2, 18) }));
+    ws['!cols'] = colWidths;
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Relatório');
+
+    setProgress(96, 'Salvando arquivo…');
+
+    const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    XLSX.writeFile(wb, `Relatorio_Faturas_${dateStr}.xlsx`);
+
+    setProgress(100, 'Concluído!');
+
+    // unique invoices found
+    const uniqueInvoices = [...new Set(finalRows.map(r => r['FATURA']).filter(Boolean))];
+
+    document.getElementById('rsRows').textContent     = finalRows.length;
+    document.getElementById('rsInvoices').textContent = uniqueInvoices.length;
+    document.getElementById('rsFiles').textContent    = selectedFiles.length;
+    document.getElementById('rsCols').textContent     = Object.keys(finalRows[0]).length;
+    resultSummary.classList.add('show');
+
+    showToast('success', `✓ Relatório gerado! ${finalRows.length} linhas exportadas.`, 5000);
+
+  } catch (err) {
+    console.error(err);
+    showToast('error', 'Erro no processamento:\n' + err.message, 6000);
+  } finally {
+    resetBtn();
+  }
+}
+
+function resetBtn() {
+  btnProcess.disabled  = false;
+  btnIcon.textContent  = '⚡';
+  btnLabel.textContent = 'Processar e Gerar Relatório';
+  setTimeout(() => {
+    progressWrap.classList.remove('show');
+    progressBar.style.width = '0%';
+  }, 1800);
+}
+</script>
+</body>
+</html>
